@@ -1,0 +1,21 @@
+name: R package check
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+      - name: Build and check
+        run: |
+          R CMD build .
+          R CMD check --no-manual occenv_*.tar.gz
+          test -f occenv.Rcheck/00check.log
+          ! grep -E 'Status:.*(ERROR|WARNING)' occenv.Rcheck/00check.log
