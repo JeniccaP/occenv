@@ -1,4 +1,4 @@
-# occenv
+# OccEnv
 
 Build environmental rasters for species from dated occurrence records.
 
