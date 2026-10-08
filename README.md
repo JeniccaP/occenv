@@ -14,30 +14,29 @@ install.packages("/path/to/occenv", repos = NULL, type = "source")
 
 R 4.1 or later is required. The only package dependency is `terra`.
 
-## Run
+## Quick start
+
+Replace these example paths and column names with your own. Supply any number of environmental variables and occurrence files.
 
 ```r
 library(occenv)
 
-environment <- list(
-  temperature = "temperature.tif",
-  precipitation = "precipitation.tif",
-  ndvi = "ndvi.tif",
-  humidity = "humidity.tif",
-  evapotranspiration = "evapotranspiration.tif"
+rasters <- list(
+  soil_temperature = "soil_temperature_monthly.tif",
+  soil_moisture = "soil_moisture_monthly.tif"
 )
+occurrences <- list(oak = "oak.csv", frog = "frog.csv")
 
-species <- list(
-  gorilla = "Gorilla.csv",
-  chimpanzee = "Chimpanzee.csv",
-  duikers = "Duikers.csv"
+# Left: package field. Right: the actual column name in that CSV.
+columns <- list(
+  oak = list(id = "RecordCode", longitude = "East", latitude = "North",
+             year = "Year", month = "Month"),
+  frog = list(id = "sample_id", longitude = "lon", latitude = "lat",
+              date = "observed_on")
 )
 
 result <- build_species_layers(
-  rasters = environment,
-  occurrences = species,
-  columns = list(id = "GBIF_ID", longitude = "Long", latitude = "Lat",
-                 year = "Year", month = "Month"),
+  rasters = rasters, occurrences = occurrences, columns = columns,
   occurrence_rule = "mean",
   background = "full_period",
   outside_period = "exclude",
@@ -45,11 +44,28 @@ result <- build_species_layers(
   output_dir = "outputs"
 )
 
-result$layers$gorilla
-table(result$records$status)
+# View one output layer; works with matching or different raster grids.
+plot(result$layers$oak[["soil_temperature"]])
+# Count records once, rather than once per environmental variable.
+audit <- unique(result$records[c("species_file", "row", "status")])
+with(audit, table(species_file, status))
 ```
 
-Each named occurrence entry produces one output group. A CSV containing multiple species, such as the duiker file above, is treated as one group. Split it first if separate species outputs are wanted.
+Coordinates must be WGS84 longitude/latitude in decimal degrees, regardless of column names. The example date column uses `YYYY-MM` or `YYYY-MM-DD`; year/month columns are an alternative. Raster layers need readable month-year dates or an explicit mapping, described below.
+
+Each named occurrence entry produces one output group. Split a CSV containing multiple species first if separate species outputs are wanted.
+
+Optional ggplot preview (install `ggplot2` separately):
+
+```r
+library(ggplot2)
+r <- result$layers$oak[["soil_temperature"]]
+pixels <- as.data.frame(r, xy = TRUE, na.rm = TRUE)
+names(pixels) <- c("x", "y", "value")
+ggplot(pixels, aes(x, y, fill = value)) +
+  geom_raster() + coord_equal() + scale_fill_viridis_c() +
+  labs(title = "Oak: soil temperature", fill = "Source units") + theme_minimal()
+```
 
 ## Options
 
@@ -75,8 +91,8 @@ Raster inputs must be continuous numeric monthly layers with an explicit coordin
 
 ```r
 env <- prepare_environment(
-  environment,
-  dates = list(temperature = seq(as.Date("1980-01-01"), by = "month", length.out = 500))
+  rasters,
+  dates = list(soil_temperature = seq(as.Date("1980-01-01"), by = "month", length.out = 500))
 )
 env$same_grid
 head(env$manifest)
